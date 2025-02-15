@@ -174,7 +174,7 @@ function Aware.create()
                 end
             end
 
-            os.queueEvent("location_updated")
+            os.queueEvent("location_updated", location)
         end
 
         return true
@@ -327,7 +327,7 @@ function Aware.create()
     function instance.turnLeft()
         if turtle.turnLeft() then
             location.f = location.f == 1 and 4 or location.f - 1
-            os.queueEvent("location_updated")
+            os.queueEvent("location_updated", location)
             return true
         end
 
@@ -338,7 +338,7 @@ function Aware.create()
     function instance.turnRight()
         if turtle.turnRight() then
             location.f = location.f == 4 and 1 or location.f + 1
-            os.queueEvent("location_updated")
+            os.queueEvent("location_updated", location)
             return true
         end
 
@@ -351,7 +351,7 @@ function Aware.create()
         location.f = location.f == 1 and 4 or location.f - 1 
         turtle.turnLeft()
         location.f = location.f == 1 and 4 or location.f - 1
-        os.queueEvent("location_updated")
+        os.queueEvent("location_updated", location)
 
         return true
     end
@@ -394,7 +394,7 @@ function Aware.create()
             end
         end
 
-        os.queueEvent("location_updated")
+        os.queueEvent("location_updated", location)
 
         return true
     end

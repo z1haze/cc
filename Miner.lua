@@ -6,6 +6,17 @@ function Miner.create()
     local Aware = require("Aware")
     local aware = Aware.create()
 
+    local junk = {
+        ["minecraft:stone"] = true,
+        ["minecraft:cobblestone"] = true,
+        ["minecraft:deepslate"] = true,
+        ["minecraft:cobbled_deepslate"] = true,
+        ["minecraft:gravel"] = true,
+        ["minecraft:andesite"] = true,
+        ["minecraft:granite"] = true,
+        ["minecraft:diorite"] = true
+    }
+
     local function detect(direction)
         if not direction or d == "forward" then
             return turtle.detect()
@@ -34,8 +45,7 @@ function Miner.create()
         if detect(direction) then
             local result, block = inspect(direction)
 
-            if result then
-                error("finish ignore stuff")
+            if result and not junk[block.name] then
                 return true
             end
         end

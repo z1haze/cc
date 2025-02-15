@@ -45,10 +45,10 @@ local miner = Miner.create()
 
 local branchCount = 6
 local branchLength = 15
-local branchGap = 2
-local startY = 60
-local minY = -48
-local maxY = 32
+local branchGap = 0
+local startY = 104
+local minY = -8
+local maxY = 13
 local floorGap = 1
 
 -- to to perform a pitstop we will iterate backwards through the checkouts
@@ -148,3 +148,27 @@ function main()
     -- finished!
     miner.home()
 end
+
+local function clearLine()
+    local x, y = term.getCursorPos()
+
+    term.setCursorPos(1, y)
+    write("|                                     |")
+    term.setCursorPos(x, y)
+end
+
+main()
+
+function listen()
+    while true do
+        local event, location = os.pullEvent()
+
+        if event == "location_updated" then
+            term.setCursorPos(3, 7)
+            clearLine()
+            write("Location  : " .. textutils.serialize(location))
+        end
+    end
+end
+
+parallel.waitForAny(main, listen)

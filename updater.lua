@@ -4,8 +4,8 @@ end
 
 local files = {
     ["2YZEVMCY"] = "go.lua",
-    ["6XZpaN99"] = "Miner3.lua",
-    ["JyLntqAR"] = "Aware3.lua"
+    ["6XZpaN99"] = "Miner.lua",
+    ["JyLntqAR"] = "Aware.lua"
 }
 
 for code, name in pairs(files) do
