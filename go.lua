@@ -46,32 +46,27 @@ local miner = Miner.create()
 local branchCount = 6
 local branchLength = 15
 local branchGap = 2
+local startY = 60
 local minY = -48
 local maxY = 32
-
--- how many do we have for an odd branch from the north facing position at the start of a branch?
--- 1 for facing right before starting the branch
--- 1 for each block in the branch
--- 1 for the left turn at the end of the branch
--- 1 for each (branchGap + 1)
--- 1 + 15 + 1 + 1
-
--- how many for an even branch?
--- 1 for facing left before starting the branch
--- 1 for each block in the branch
--- 1 for the right turn at the end of the branch
--- 1 for each (branchGap + 1)
--- 1 + 15 + 1 + 1
-
--- so we remove 36 checkpoints after completing an even branch
+local floorGap = 1
 
 -- to to perform a pitstop we will iterate backwards through the checkouts
 -- we will first update the facing direction, and then we will execute a backwards movement
 
 function main()
-    miner.moveTo(0, minY, 0, 1)
+    -- move down to the min y level to start branch mining
+    miner.moveTo({
+        x = 0,
+        y = startY - minY, -- moving to absolute y from relative y
+        z = 0,
+        f = 1
+    })
+
+    -- add a checkpoint at the bottom of the shaft
     miner.addCheckpoint()
 
+    -- mine out all floors
     while true do
         -- execute branches on current y level
         for i = 1, branchCount do
@@ -87,6 +82,7 @@ function main()
             -- add checkpoint before starting the branch
             miner.addCheckpoint()
 
+            -- each block of the branch will check a checkpoint after it completes
             miner.branchMine({
                 branchLength = branchLength,
                 shouldCheckUp = false,
@@ -94,7 +90,7 @@ function main()
                 shouldCheckRight = false
             })
 
-            -- get in position for the next branch
+            -- move across the z axis to prepare for the next branch
             if i < branchCount then
                 miner.turnTo(1)
                 miner.addCheckpoint()
@@ -105,6 +101,50 @@ function main()
                     miner.addCheckpoint()
                 end
             end
+
+            -- how many checkpoints in a branch process?
+            -- 1 for facing at the start the branch
+            -- 1 for each block in the branch
+            -- 1 for the turn at the end of the branch
+            -- 1 for each (branchGap + 1)
+            -- remove the last 2 branches worth of checkpoints
+            if isEvenBranch then
+                miner.removeCheckpoints(2 + (2 * branchLength) + 2 + 2)
+            end
         end
+
+        -- PREPARE FOR POSSIBLE NEXT FLOOR!
+
+        -- next potential y level to mine out
+        local nextY = miner.getLocation().y + floorGap + 1
+
+        -- are we at beyond the starting y?
+        if nextY >= startY or nextY > maxY then
+            break
+        end
+
+        -- move to vertical shaft
+        miner.moveTo({
+            x = 0,
+            y = miner.getLocation().y,
+            z = 0,
+            f = 1
+        })
+
+        -- move up n number of blocks
+        miner.moveTo({
+            x = 0,
+            y = nextY,
+            z = 0,
+            f = 1
+        })
+
+        -- delete all checkpoints except the first one?
+        miner.resetCheckpoints()
+        -- save a checkpoint for the start of the next floor
+        miner.addCheckpoint()
     end
+
+    -- finished!
+    miner.home()
 end

@@ -10,6 +10,7 @@ local Aware = {}
 ---@field up fun(distance?: number, canDig?: boolean): boolean Move up by specified distance
 ---@field down fun(distance?: number, canDig?: boolean): boolean Move down by specified distance
 ---@field moveTo fun(x: number, y: number, z: number, f?: number, canDig?: boolean, order?: string): boolean Move to specific coordinates. order defaults to "yxz"
+---@field home fun(canDig?: boolean, order?: string): boolean move to home coordinates order defaults to "yxz"
 ---
 --- Rotation Methods:
 ---@field turnLeft fun(): boolean Turn 90 degrees left
@@ -28,10 +29,13 @@ local Aware = {}
 ---@field checkpoints.removeLastN fun(n: number): table[] Remove last n checkpoints and return them
 function Aware.create()
     local instance = {}
+    local home = {x = 0, y = 0, z = 0, f = 1}
     local location = {x = 0, y = 0, z = 0, f = 1}
 
     instance.checkpoints = {
-        points = {},
+        points = {
+            home
+        },
 
         -- Add a new location to the checkpoints table
         add = function()
@@ -67,6 +71,12 @@ function Aware.create()
             end
 
             return removed
+        end,
+
+        reset = function()
+            instance.checkpoints.points = {
+                home
+            }
         end
     }
 
@@ -299,6 +309,15 @@ function Aware.create()
 
         return instance.turnTo(location.f)
     end
+
+    -- Move the turtle to home
+    function instance.home(order, canDig)
+        instance.moveTo(home, {
+            order = order,
+            canDig = canDig
+        })
+    end
+
 
     --- ===============================================================
     --- ROTATION METHODS

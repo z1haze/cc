@@ -125,8 +125,24 @@ function Miner.create()
         return aware.turnTo(n)
     end
 
+    function instance.home(canDig)
+        aware.home("xzy", canDig or false)
+    end
+
+    function instance.resetCheckpoints()
+        aware.checkpoints.reset()
+    end
+
     function instance.addCheckpoint()
         aware.checkpoints.add()
+    end
+
+    function instance.getLocation()
+        return aware.getLocation()
+    end
+
+    function instance.moveTo(location)
+
     end
 
     function instance.pitStop()
