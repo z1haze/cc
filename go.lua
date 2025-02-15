@@ -58,7 +58,7 @@ function main()
     -- move down to the min y level to start branch mining
     miner.moveTo({
         x = 0,
-        y = startY - minY, -- moving to absolute y from relative y
+        y = minY - startY, -- moving to absolute y from relative y
         z = 0,
         f = 1
     }, {

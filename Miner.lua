@@ -17,57 +17,25 @@ function Miner.create()
         ["minecraft:diorite"] = true
     }
 
-    local function detect(direction)
-        if not direction or d == "forward" then
-            return turtle.detect()
-        elseif direction == "up" then
-            return turtle.detectUp()
-        elseif direction == "down" then
-            return turtle.detectDown()
-        end
-
-        return false
-    end
-
-    local function inspect(direction)
-        if not direction or direction == "forward" then
-            return turtle.inspect()
-        elseif direction == "up" then
-            return turtle.inspectUp()
-        elseif direction == "down" then
-            return turtle.inspectDown()
-        end
-
-        return false
-    end
-
-    local function check(direction)
-        if detect(direction) then
-            local result, block = inspect(direction)
-
-            if result and not junk[block.name] then
-                return true
-            end
-        end
-
-        return false
-    end
-
-    function instance.dig(direction)
-        if not direction or direction == "forward" then
-            return turtle.dig()
-        elseif direction == "up" then
-            return turtle.digUp()
-        elseif direction == "down" then
-            return turtle.digDown()
-        end
-
-        return false
-    end
+    --- ===============================================================
+    --- ROTATION METHODS
+    --- ===============================================================
 
     function instance.turnLeft()
         return aware.turnLeft()
     end
+
+    function instance.turnRight()
+        return aware.turnRight()
+    end
+
+    function instance.turnTo(n)
+        return aware.turnTo(n)
+    end
+
+    --- ===============================================================
+    --- MOVEMENT METHODS
+    --- ===============================================================
 
     local function move(direction)
         if not direction then
@@ -75,18 +43,6 @@ function Miner.create()
         end
 
         return aware[direction](1, true)
-    end
-
-    function instance.attack(direction)
-        if not direction or direction == "forward" then
-            return turtle.attack()
-        elseif direction == "up" then
-            return turtle.attackUp()
-        elseif direction == "down" then
-            return turtle.attackDown()
-        end
-
-        return false
     end
 
     function instance.move(direction)
@@ -131,13 +87,13 @@ function Miner.create()
         return moved
     end
 
-    function instance.turnTo(n)
-        return aware.turnTo(n)
-    end
-
     function instance.home(canDig)
         aware.home("xzy", canDig or false)
     end
+
+    --- ===============================================================
+    --- LOCATION/CHECKPOINT METHODS
+    --- ===============================================================
 
     function instance.resetCheckpoints()
         aware.checkpoints.reset()
@@ -154,6 +110,10 @@ function Miner.create()
     function instance.moveTo(location, options)
         aware.moveTo(location, options)
     end
+
+    -------------------------------
+    -------------------------------
+    -------------------------------
 
     function instance.pitStop()
         print("Going for a pitstop")
@@ -224,7 +184,7 @@ function Miner.create()
 
             if shouldCheckRight then
                 -- check the block to the right
-                aware.turnRight()
+                instance.turnRight()
                 if check() then
                     instance.dig()
                 end
@@ -234,6 +194,66 @@ function Miner.create()
             -- add checkpoint after each block on the branch
             instance.addCheckpoint()
         end
+    end
+
+    local function detect(direction)
+        if not direction or d == "forward" then
+            return turtle.detect()
+        elseif direction == "up" then
+            return turtle.detectUp()
+        elseif direction == "down" then
+            return turtle.detectDown()
+        end
+
+        return false
+    end
+
+    local function inspect(direction)
+        if not direction or direction == "forward" then
+            return turtle.inspect()
+        elseif direction == "up" then
+            return turtle.inspectUp()
+        elseif direction == "down" then
+            return turtle.inspectDown()
+        end
+
+        return false
+    end
+
+    local function check(direction)
+        if detect(direction) then
+            local result, block = inspect(direction)
+
+            if result and not junk[block.name] then
+                return true
+            end
+        end
+
+        return false
+    end
+
+    function instance.dig(direction)
+        if not direction or direction == "forward" then
+            return turtle.dig()
+        elseif direction == "up" then
+            return turtle.digUp()
+        elseif direction == "down" then
+            return turtle.digDown()
+        end
+
+        return false
+    end
+
+    function instance.attack(direction)
+        if not direction or direction == "forward" then
+            return turtle.attack()
+        elseif direction == "up" then
+            return turtle.attackUp()
+        elseif direction == "down" then
+            return turtle.attackDown()
+        end
+
+        return false
     end
 
     return instance
