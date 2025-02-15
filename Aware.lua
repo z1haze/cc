@@ -80,6 +80,17 @@ function Aware.create()
         end
     }
 
+    instance.fuelMap = {
+        ["minecraft:coal"] = 80,
+        ["minecraft:charcoal"] = 80,
+        ["minecraft:lava_bucket"] = 1000,
+        ["minecraft_coal_block"] = 800,
+        ["minecraft_charcoal_block"] = 800,
+        ["immersiveengineering:coke"] = 1600,
+        ["immersiveengineering:coal_coke"] = 160,
+        ["modern_industrialization:lignite_coal"] = 80
+    }
+
     -- Get current location
     function instance.getLocation()
         return {
@@ -275,6 +286,8 @@ function Aware.create()
 
     -- Move the turtle to a specific location, providing exact coordinates, optionally allowing the turtle to dig if it needs to, and optionally specifying the axis order in which it moves
     function instance.moveTo(location, options)
+        options = options or {}
+
         if not options.order then
             options.order = "yxz"  -- Default movement order
         end
@@ -397,6 +410,54 @@ function Aware.create()
         os.queueEvent("location_updated", location)
 
         return true
+    end
+
+    --- ===============================================================
+    --- FUELING METHODS
+    --- ===============================================================
+
+    function instance.useFuel(targetFuelLevel)
+        -- cache the currently selected slot, so we can put it back when we're done
+        local slot = turtle.getSelectedSlot()
+
+        -- loop through the entire inventory
+        for i = 1, 16 do
+            if not turtle.select(i) then
+                return false
+            end
+
+            -- if we've reached our fuel target, we can quit
+            if turtle.getFuelLevel() >= targetFuelLevel then
+                break
+            end
+
+            local itemDetail = turtle.getItemDetail(i)
+
+            -- if the item is able to be used as fuel and is not at torch (we want to keep those)
+            if turtle.refuel(0) and itemDetail.name ~= "minecraft:torch" then
+                local fuelPer
+
+                -- try to get a better estimate on what the fuel is
+                if instance.fuelMap[itemDetail.name] then
+                    fuelPer = instance.fuelMap[itemDetail.name]
+                else
+                    fuelPer = 80
+                end
+
+                -- get the number of items we can eat for fuel
+                local count = turtle.getItemCount()
+
+                -- reduce the number of items to consume until we are at or below the target fuel level
+                while (turtle.getFuelLevel() + (count * fuelPer)) > targetFuelLevel and count > 1 do
+                    count = count - 1
+                end
+
+                -- burn that shit
+                turtle.refuel(count)
+            end
+        end
+
+        return turtle.select(slot)
     end
 
     return instance

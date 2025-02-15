@@ -57,6 +57,8 @@ local floorGap = 1
 -- to to perform a pitstop we will iterate backwards through the checkouts
 -- we will first update the facing direction, and then we will execute a backwards movement
 
+local targetY = minY
+
 function main()
     -- move down to the min y level to start branch mining
     miner.moveTo({
@@ -133,10 +135,10 @@ function main()
         })
 
         -- next potential y level to mine out
-        local nextY = startY + miner.getLocation().y + floorGap + 1
+        targetY = startY + miner.getLocation().y + floorGap + 1
 
         -- are we at beyond the starting y?
-        if nextY >= startY or nextY > maxY then
+        if targetY >= startY or targetY > maxY then
             keepGoing = false
 
             -- delete all checkpoints except the first one?
@@ -147,7 +149,7 @@ function main()
             -- move up n number of blocks
             miner.moveTo({
                 x = 0,
-                y = nextY - startY,
+                y = targetY - startY,
                 z = 0,
                 f = 1
             }, {
@@ -167,6 +169,7 @@ function listen()
         if event == "location_updated" then
             print("Rel Location  : " .. textutils.serialize(location))
             print("Actual Y : " .. startY + location.y)
+            print("Target Y : " .. targetY)
         end
     end
 end
