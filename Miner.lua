@@ -110,6 +110,10 @@ function Miner.create()
     --- LOCATION/CHECKPOINT METHODS
     --- ===============================================================
 
+    function instance.checkpoints()
+        return aware.checkpoints.points
+    end
+
     function instance.resetCheckpoints()
         return aware.checkpoints.reset()
     end
@@ -256,12 +260,21 @@ function Miner.create()
     end
 
     function instance.pitStop()
+        print("doing a pitstop")
         -- go home backwards
+
         for i = #aware.checkpoints.points, 1, -1 do
-            local location = aware.checkpoints.points[i]
-            aware.moveTo(location, {
+            local loc = aware.checkpoints.points[i]
+            local moved = aware.moveTo(loc, {
+                direction = "back",
                 order = "xzy"
             })
+
+            if not moved then
+                print("attempted: " .. loc.x .. " " .. loc.y .. " " .. loc.z .. " " .. loc.f)
+                print("current: " .. location.x .. " " .. location.y .. " " .. location.z .. " " .. location.f)
+                error("tried to move but couldnt")
+            end
         end
 
         print("moved to home to unload")

@@ -50,8 +50,8 @@ local branchCount = 6
 local branchLength = 15
 local branchGap = 0
 local startY = 104
-local minY = 24
-local maxY = 29
+local minY = 40
+local maxY = 44
 local floorGap = 1
 
 -- to to perform a pitstop we will iterate backwards through the checkouts
@@ -79,6 +79,8 @@ function main()
     while keepGoing do
         -- execute branches on current y level
         for i = 1, branchCount do
+            print("there are " .. #miner.checkpoints() .. " checkpoints")
+
             local isEvenBranch = i % 2 == 0
 
             -- face the branch
@@ -167,9 +169,9 @@ function listen()
         local event, location = os.pullEvent()
 
         if event == "location_updated" then
-            print("Rel Location  : " .. textutils.serialize(location))
-            print("Actual Y : " .. startY + location.y)
-            print("Target Y : " .. targetY)
+            --print("Rel Location  : " .. textutils.serialize(location))
+            --print("Actual Y : " .. startY + location.y)
+            --print("Target Y : " .. targetY)
         end
     end
 end
