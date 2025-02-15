@@ -151,8 +151,8 @@ function Miner.create()
         return aware.getLocation()
     end
 
-    function instance.moveTo(location)
-
+    function instance.moveTo(location, options)
+        aware.moveTo(location, options)
     end
 
     function instance.pitStop()

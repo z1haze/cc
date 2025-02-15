@@ -61,6 +61,8 @@ function main()
         y = startY - minY, -- moving to absolute y from relative y
         z = 0,
         f = 1
+    }, {
+        canDig = true
     })
 
     -- add a checkpoint at the bottom of the shaft

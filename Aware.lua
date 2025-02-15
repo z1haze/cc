@@ -260,14 +260,14 @@ function Aware.create()
 
     -- Explicitly move the turtle along the y-axis to a specified coordinate, optionally allowing the turtle to dig if it needs to
     local function moveToY(y, canDig)
-        if instance.y == y then
+        if location.y == y then
             return true
         end
 
-        if instance.y < y then
-            return instance.up(y - instance.y, canDig)
-        elseif instance.y > y then
-            return instance.down(instance.y - y, canDig)
+        if location.y < y then
+            return instance.up(y - location.y, canDig)
+        elseif location.y > y then
+            return instance.down(location.y - y, canDig)
         end
 
         return false
