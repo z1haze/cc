@@ -96,11 +96,15 @@ function Miner.create()
     --- ===============================================================
 
     function instance.resetCheckpoints()
-        aware.checkpoints.reset()
+        return aware.checkpoints.reset()
     end
 
     function instance.addCheckpoint()
-        aware.checkpoints.add()
+        return aware.checkpoints.add()
+    end
+
+    function instance.removeCheckpoints(n)
+        return aware.checkpoints.removeLastN(n)
     end
 
     function instance.getLocation()
@@ -116,23 +120,56 @@ function Miner.create()
     -------------------------------
 
     function instance.pitStop()
-        print("Going for a pitstop")
         for i = #aware.checkpoints.points, 1, -1 do
             local location = aware.checkpoints.points[i]
             aware.moveTo(location, { direction = "back" })
         end
     end
 
+    local function detect(direction)
+        if not direction or d == "forward" then
+            return turtle.detect()
+        elseif direction == "up" then
+            return turtle.detectUp()
+        elseif direction == "down" then
+            return turtle.detectDown()
+        end
+
+        return false
+    end
+
+    local function inspect(direction)
+        if not direction or direction == "forward" then
+            return turtle.inspect()
+        elseif direction == "up" then
+            return turtle.inspectUp()
+        elseif direction == "down" then
+            return turtle.inspectDown()
+        end
+
+        return false
+    end
+
+    local function check(direction)
+        if detect(direction) then
+            local result, block = inspect(direction)
+
+            if result and not junk[block.name] then
+                return true
+            end
+        end
+
+        return false
+    end
+
     function instance.branchMine(data)
-        print("starting a branch mine")
         local branchLength = data.branchLength
         local shouldCheckUp = data.shouldCheckUp == nil and true or data.shouldCheckUp
         local shouldCheckDown = data.shouldCheckDown == nil and true or data.shouldCheckDown
         local shouldCheckLeft = data.shouldCheckLeft == nil and true or data.shouldCheckLeft
         local shouldCheckRight = data.shouldCheckRight == nil and true or data.shouldCheckRight
 
-        for i = 1, branchLength do
-            print("on block " .. i .. " of " .. branchLength)
+        for _ = 1, branchLength do
             ---- refuel if necessary
             --if turtle.getFuelLevel() < 1000 then
             --    self:useFuel(1000)
@@ -194,42 +231,6 @@ function Miner.create()
             -- add checkpoint after each block on the branch
             instance.addCheckpoint()
         end
-    end
-
-    local function detect(direction)
-        if not direction or d == "forward" then
-            return turtle.detect()
-        elseif direction == "up" then
-            return turtle.detectUp()
-        elseif direction == "down" then
-            return turtle.detectDown()
-        end
-
-        return false
-    end
-
-    local function inspect(direction)
-        if not direction or direction == "forward" then
-            return turtle.inspect()
-        elseif direction == "up" then
-            return turtle.inspectUp()
-        elseif direction == "down" then
-            return turtle.inspectDown()
-        end
-
-        return false
-    end
-
-    local function check(direction)
-        if detect(direction) then
-            local result, block = inspect(direction)
-
-            if result and not junk[block.name] then
-                return true
-            end
-        end
-
-        return false
     end
 
     function instance.dig(direction)

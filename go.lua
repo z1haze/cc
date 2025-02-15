@@ -40,6 +40,9 @@
 -- after completion of an even branch, delete the position record insertions for the last 2 branches
 -- because they are not necessary for us to keep in order to path find back to the shaft
 
+write("Miner initializing")
+textutils.slowPrint("...", 5)
+
 local Miner = require("Miner")
 local miner = Miner.create()
 
@@ -47,8 +50,8 @@ local branchCount = 6
 local branchLength = 15
 local branchGap = 0
 local startY = 104
-local minY = -8
-local maxY = 13
+local minY = 24
+local maxY = 29
 local floorGap = 1
 
 -- to to perform a pitstop we will iterate backwards through the checkouts
@@ -68,8 +71,10 @@ function main()
     -- add a checkpoint at the bottom of the shaft
     miner.addCheckpoint()
 
+    local keepGoing = true
+
     -- mine out all floors
-    while true do
+    while keepGoing do
         -- execute branches on current y level
         for i = 1, branchCount do
             local isEvenBranch = i % 2 == 0
@@ -99,7 +104,7 @@ function main()
 
                 for _ = 1, branchGap + 1 do
                     miner.dig()
-                    miner:move()
+                    miner.move()
                     miner.addCheckpoint()
                 end
             end
@@ -117,58 +122,51 @@ function main()
 
         -- PREPARE FOR POSSIBLE NEXT FLOOR!
 
-        -- next potential y level to mine out
-        local nextY = miner.getLocation().y + floorGap + 1
-
-        -- are we at beyond the starting y?
-        if nextY >= startY or nextY > maxY then
-            break
-        end
-
         -- move to vertical shaft
         miner.moveTo({
             x = 0,
             y = miner.getLocation().y,
             z = 0,
             f = 1
+        }, {
+            canDig = false
         })
 
-        -- move up n number of blocks
-        miner.moveTo({
-            x = 0,
-            y = nextY,
-            z = 0,
-            f = 1
-        })
+        -- next potential y level to mine out
+        local nextY = startY + miner.getLocation().y + floorGap + 1
 
-        -- delete all checkpoints except the first one?
-        miner.resetCheckpoints()
-        -- save a checkpoint for the start of the next floor
-        miner.addCheckpoint()
+        -- are we at beyond the starting y?
+        if nextY >= startY or nextY > maxY then
+            keepGoing = false
+
+            -- delete all checkpoints except the first one?
+            miner.resetCheckpoints()
+            -- save a checkpoint for the start of the next floor
+            miner.addCheckpoint()
+        else
+            -- move up n number of blocks
+            miner.moveTo({
+                x = 0,
+                y = nextY - startY,
+                z = 0,
+                f = 1
+            }, {
+                canDig = false
+            })
+        end
     end
 
     -- finished!
     miner.home()
 end
 
-local function clearLine()
-    local x, y = term.getCursorPos()
-
-    term.setCursorPos(1, y)
-    write("|                                     |")
-    term.setCursorPos(x, y)
-end
-
-main()
-
 function listen()
     while true do
         local event, location = os.pullEvent()
 
         if event == "location_updated" then
-            term.setCursorPos(3, 7)
-            clearLine()
-            write("Location  : " .. textutils.serialize(location))
+            print("Rel Location  : " .. textutils.serialize(location))
+            print("Actual Y : " .. startY + location.y)
         end
     end
 end
