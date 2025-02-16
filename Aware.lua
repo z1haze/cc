@@ -20,65 +20,10 @@ local Aware = {}
 ---
 --- Location Methods:
 ---@field getLocation fun(): table Returns current location {x: number, y: number, z: number, f: number}
----
---- Checkpoint Methods:
----@field checkpoints table Checkpoint management
----@field checkpoints.points table[] Array of saved location checkpoints
----@field checkpoints.add fun() Save current location as checkpoint
----@field checkpoints.pop fun(): table|nil Remove and return last checkpoint
----@field checkpoints.removeLastN fun(n: number): table[] Remove last n checkpoints and return them
 function Aware.create()
     local instance = {}
-    local home = {x = 0, y = 0, z = 0, f = 1}
     local location = {x = 0, y = 0, z = 0, f = 1}
-
-    instance.checkpoints = {
-        points = {
-            home
-        },
-
-        -- Add a new location to the checkpoints table
-        add = function()
-            table.insert(instance.checkpoints.points, {
-                x = location.x,
-                y = location.y,
-                z = location.z,
-                f = location.f
-            })
-        end,
-
-        -- Remove the last location in the checkpoints table
-        pop = function()
-            if #instance.checkpoints.points > 0 then
-                return table.remove(instance.checkpoints.points)
-            end
-
-            return nil
-        end,
-
-        -- Remove the last `N` number of locations from the checkpoints table
-        removeLastN = function(n)
-            if type(n) ~= "number" then
-                return false, "Invalid arguments. n must be a number"
-            end
-
-            -- Ensure we don't try to remove more elements than exist
-            local count = math.min(n, #instance.checkpoints.points)
-            local removed = {}
-
-            for _ = 1, count do
-                table.insert(removed, table.remove(instance.checkpoints.points))
-            end
-
-            return removed
-        end,
-
-        reset = function()
-            instance.checkpoints.points = {
-                home
-            }
-        end
-    }
+    local checkpoint = nil
 
     instance.fuelMap = {
         ["minecraft:coal"] = 80,
@@ -99,6 +44,29 @@ function Aware.create()
             z = location.z,
             f = location.f
         }
+    end
+
+    --- ===============================================================
+    --- CHECKPOINT METHODS
+    --- ===============================================================
+
+    -- get the current checkpoint if it exists
+    function instance.getCheckpoint()
+        return checkpoint
+    end
+
+    -- set the checkpoint
+    function instance.setCheckpoint()
+        checkpoint = {
+            x = location.x,
+            y = location.y,
+            z = location.z,
+            f = location.f
+        }
+    end
+
+    function instance.clearCheckpoint()
+        checkpoint = nil
     end
 
     --- ===============================================================
@@ -153,7 +121,8 @@ function Aware.create()
                         end
                     else
                         -- fail because we dont have permission to dig the block
-                        error("I need to dig, but I'm not allowed")
+                        print(textutils.serialize(location))
+                        error("I need to dig " .. direction .. " but I'm not allowed")
                     end
                 else
                     -- since we didnt move, and we didnt detect a block, and we're not out of fuel, must be some entity in the way, attack it!
@@ -186,6 +155,7 @@ function Aware.create()
             end
 
             os.queueEvent("location_updated", location)
+            os.queueEvent("moved")
         end
 
         return true
@@ -292,11 +262,7 @@ function Aware.create()
             options.order = "yxz"  -- Default movement order
         end
 
-        if string.len(options.order) ~= 3 then
-            error("invalid order length")
-        end
-
-        -- Create a mapping for the coordinates
+        -- Create a table copy with coordinates
         local coords = {
             x = location.x,
             y = location.y,
@@ -310,7 +276,7 @@ function Aware.create()
             if char == "x" then
                 success = moveToX(coords[char], options.canDig, options.direction)
             elseif char == "y" then
-                success = moveToY(coords[char], options.canDig, options.direction)
+                success = moveToY(coords[char], options.canDig)
             elseif char == "z" then
                 success = moveToZ(coords[char], options.canDig, options.direction)
             end
@@ -325,7 +291,12 @@ function Aware.create()
 
     -- Move the turtle to home
     function instance.home(order, canDig)
-        instance.moveTo(home, {
+        instance.moveTo({
+            x = 0,
+            y = 0,
+            z = 0,
+            f = 1
+        }, {
             order = order,
             canDig = canDig
         })
@@ -360,13 +331,29 @@ function Aware.create()
 
     -- Rotates the turtle 180 degrees
     function instance.turnAround()
-        turtle.turnLeft()
-        location.f = location.f == 1 and 4 or location.f - 1 
-        turtle.turnLeft()
-        location.f = location.f == 1 and 4 or location.f - 1
+        for _ = 1, 2 do
+            local res = instance.turn("right")
+
+            if not res then
+                return false
+            end
+
+            location.f = location.f == 1 and 4 or location.f - 1
+        end
+
         os.queueEvent("location_updated", location)
 
         return true
+    end
+
+    function instance.turn(direction)
+        if direction == "left" then
+            return instance.turnLeft()
+        elseif direction == "right" then
+            return instance.turnRight()
+        end
+
+        return false
     end
 
     -- Rotate the turtle to a specified direction
