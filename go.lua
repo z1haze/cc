@@ -25,6 +25,8 @@ local miner = Miner.create({
         -- blockus
         ["blockus:limestone"] = true,
         ["blockus:marble"] = true,
+        ["blockus:bluestone"] = true,
+        ["blockus:veridite"] = true,
         -- create
         ["create:asurine"] = true,
         -- promenade
@@ -284,7 +286,6 @@ function main()
 
             miner.branchMine({
                 branchLength = branchLength,
-                shouldCheckUp = false,
                 shouldCheckLeft = false,
                 shouldCheckRight = false,
                 shouldDigRecursively = true
