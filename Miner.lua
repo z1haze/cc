@@ -11,7 +11,8 @@ function Miner.create(data)
 
     local storage = {
         name = {
-            "immersiveengineering:crate"
+            "immersiveengineering:crate",
+            "ironchests:gold_chest"
         },
 
         tags = {
@@ -378,11 +379,13 @@ function Miner.create(data)
     end
 
     local function recursiveDig(dir)
+        dir = dir or "forward"
 
         --- helper function to dig blocks recursively in a direction
         --
         -- @param d string: direction
         local function dig(d)
+            d = d or "forward"
             instance.dig(d)
             os.queueEvent("block_collected")
             freeUpSpace()
