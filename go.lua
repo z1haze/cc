@@ -36,7 +36,7 @@ local miner = Miner.create({
 })
 
 -- Program level variables
-local branchCount, branchLength, branchGap, startY, minY, maxY, targetY, floorGap
+local branchCount, branchLength, branchGap, startY, minY, maxY, targetY, floorGap, doRecursion
 
 --- ===============================================================
 --- GUI STUFF
@@ -246,6 +246,23 @@ local function setup()
                 print("'" .. input .. "' should be a number")
             end
         end
+
+        while doRecursion == nil do
+            print("");
+            print("Should we check for ores recursively? Enter 'yes' or 'no'")
+
+            local input = read();
+
+            if input == 'yes' then
+                doRecursion = true
+            elseif input == 'no' then
+                doRecursion = false
+            end
+
+            if doRecursion == nil then
+                print("'" .. input .. "' should be a 'yes' or 'no'")
+            end
+        end
     end
 
     targetY = minY
@@ -288,7 +305,7 @@ function main()
                 branchLength = branchLength,
                 shouldCheckLeft = false,
                 shouldCheckRight = false,
-                shouldDigRecursively = true
+                shouldDigRecursively = doRecursion or false
             })
 
             -- move across the z axis to prepare for the next branch
