@@ -362,17 +362,17 @@ function Miner.create(data)
         end
 
         ---- consolidate partial stacks where possible
-        if #getEmptySlots() <= 1 then
+        if #getEmptySlots() < 2 then
             instance.compact()
         end
 
         ---- check if there are empty slots, dump any useless blocks to save space
-        if #getEmptySlots() <= 1 then
+        if #getEmptySlots() < 2 then
             instance.dropTrash()
         end
 
         ---- if after dump useless blocks the empty space is 1, go unload
-        if #getEmptySlots() <= 1 then
+        if #getEmptySlots() < 2 then
             instance.pitStop()
             os.queueEvent("branch")
         end
