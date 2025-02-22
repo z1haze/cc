@@ -422,10 +422,14 @@ function Miner.create(data)
             -- turn to direction
             if v == "left" then
                 instance.turn("left")
+                table.insert(movements, "left")
             elseif v == "right" then
                 instance.turn("right")
+                table.insert(movements, "right")
             elseif v == "back" then
                 instance.turnAround()
+                table.insert(movements, "right")
+                table.insert(movements, "right")
             end
 
             -- for both and right, we just check forward
@@ -441,10 +445,14 @@ function Miner.create(data)
             -- turn back to front
             if v == "left" then
                 instance.turn("right")
+                table.remove(movements)
             elseif v == "right" then
                 instance.turn("left")
+                table.remove(movements)
             elseif v == "back" then
                 instance.turnAround()
+                table.remove(movements)
+                table.remove(movements)
             end
         end
 
@@ -462,7 +470,7 @@ function Miner.create(data)
                 instance.move(direction)
                 table.insert(movements, direction)
                 recursiveDig(direction)
-                instance.move(invert[direction])
+                instance.move(direction, true)
                 movements = {}
             end
         end
