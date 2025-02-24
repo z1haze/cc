@@ -382,9 +382,9 @@ function Aware.create()
             return false
         end
 
-        local diff = location.f - n
-
         while n ~= location.f do
+            local diff = location.f - n
+
             if diff == 1 or diff == -3 then
                 turtle.turnLeft()
                 location.f = location.f == 1 and 4 or location.f - 1

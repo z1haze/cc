@@ -485,6 +485,8 @@ function Miner.create(data)
         local shouldDigRecursively = data.shouldDigRecursively == nil and false or data.shouldDigRecursively
 
         for i = 1, branchLength do
+            movements = {} -- just in case?
+
             os.queueEvent("branch_block", i)
 
             freeUpSpace()

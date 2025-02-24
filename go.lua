@@ -26,9 +26,12 @@ local miner = Miner.create({
         ["blockus:limestone"] = true,
         ["blockus:marble"] = true,
         ["blockus:bluestone"] = true,
-        ["blockus:veridite"] = true,
+        ["blockus:viridite"] = true,
         -- create
         ["create:asurine"] = true,
+        ["create:limestone"] = true,
+        ["create:crimsite"] = true,
+        ["create:scoria"] = true,
         -- promenade
         ["promenade:carbonite"] = true,
         ["promenade:blunite"] = true
