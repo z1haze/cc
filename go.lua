@@ -7,6 +7,8 @@ textutils.slowPrint("...", 5)
 
 local DEBUG = false
 
+local logger = fs.open("log.txt", "w")
+
 local Miner = require("Miner")
 local miner = Miner.create({
     junk = {
@@ -36,7 +38,7 @@ local miner = Miner.create({
         ["promenade:carbonite"] = true,
         ["promenade:blunite"] = true
     }
-})
+}, logger)
 
 -- Program level variables
 local branchCount, branchLength, branchGap, startY, minY, maxY, targetY, floorGap, doRecursion
@@ -294,6 +296,8 @@ function main()
 
         for i = 1, branchCount do
             GUICurrentBranch = i
+
+            logger.writeLine("Starting branch " .. i .. " at y-level " .. targetY)
 
             local isEvenBranch = i % 2 == 0
 

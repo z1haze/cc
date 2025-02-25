@@ -20,7 +20,7 @@ local Aware = {}
 ---
 --- Location Methods:
 ---@field getLocation fun(): table Returns current location {x: number, y: number, z: number, f: number}
-function Aware.create()
+function Aware.create(logger)
     local instance = {}
     local location = {x = 0, y = 0, z = 0, f = 1}
     local checkpoint = nil
@@ -63,6 +63,8 @@ function Aware.create()
             z = location.z,
             f = location.f
         }
+
+        logger.writeLine("Checkpoint set to x:" .. checkpoint.x .. " y:" .. checkpoint.y .. " z:" .. checkpoint.z .. " f:" .. checkpoint.f)
     end
 
     function instance.clearCheckpoint()
@@ -83,6 +85,8 @@ function Aware.create()
         -- default distance of 1
         if not distance then
             distance = 1
+            else
+            distance = math.abs(distance)
         end
 
         -- ensure valid direction
@@ -101,8 +105,7 @@ function Aware.create()
 
                 -- if direction is back we need to turn around and face that block
                 if direction == "back" then
-                    turtle.turnLeft()
-                    turtle.turnLeft()
+                    instance.turnAround()
                 end
 
                 -- update methods if up or down
@@ -130,8 +133,7 @@ function Aware.create()
                 end
 
                 if direction == "back" then
-                    turtle.turnLeft()
-                    turtle.turnLeft()
+                    instance.turnAround()
                 end
 
                 if fail then
@@ -182,26 +184,48 @@ function Aware.create()
     end
 
     -- Explicitly move the turtle along the z-axis to a specified coordinate, optionally allowing the turtle to dig if it needs to
-    local function moveToZ(z, canDig, direction)
+    local function moveToZ(z, canDig, direction, doLog)
         if location.z == z then
+            if doLog then
+                logger.writeLine("Moving to z:" .. z .. " in direction " .. direction .. " but apparently im already there")
+            end
             return true
         end
 
         direction = direction or "forward"
 
+        if doLog then
+            logger.writeLine("Moving to z:" .. z .. " in direction " .. direction)
+        end
+
         if location.z < z then
+            if doLog then
+                logger.writeLine("Destination z is greater than location z")
+            end
             if direction == "back" then
                 instance.turnTo("-z")
+                if doLog then
+                    logger.writeLine("Turned to -z because direction is back. Now I am facing " .. location.f)
+                end
             else
                 instance.turnTo("z")
             end
 
             return instance.forward(z - location.z, canDig)
         elseif location.z > z then
+            if doLog then
+                logger.writeLine("Destination z is less than location z")
+            end
             if direction == "back" then
                 instance.turnTo("z")
+                if doLog then
+                    logger.writeLine("Turned to z because direction is back. Now I am facing " .. location.f)
+                end
             else
                 instance.turnTo("-z")
+                if doLog then
+                    logger.writeLine("Turned to -z now I am facing " .. location.f)
+                end
             end
 
             return instance.forward(location.z - z, canDig)
@@ -211,26 +235,51 @@ function Aware.create()
     end
 
     -- Explicitly move the turtle along the x-axis to a specified coordinate, optionally allowing the turtle to dig if it needs to
-    local function moveToX(x, canDig, direction)
+    local function moveToX(x, canDig, direction, doLog)
         if location.x == x then
+            if doLog then
+                logger.writeLine("Moving to x:" .. x .. " in direction " .. direction .. " but apparently im already there")
+            end
             return true
         end
 
         direction = direction or "forward"
 
+        if doLog then
+            logger.writeLine("Moving to x:" .. x .. " in direction " .. direction)
+        end
+
         if location.x < x then
+            if doLog then
+                logger.writeLine("Destination x is greater than location x")
+            end
             if direction == "back" then
                 instance.turnTo("-x") -- we need to increase on x-axis, but we're going backwards so we should be facing negative x
+                if doLog then
+                    logger.writeLine("Turned to -x because direction is back. Now I am facing " .. location.f)
+                end
             else
                 instance.turnTo("x") -- we need to increase on x-axis, and we're moving forwards so we should be facing positive x
+                if doLog then
+                    logger.writeLine("Turned to x now I am facing " .. location.f)
+                end
             end
 
             return instance[direction](x - location.x, canDig)
         elseif location.x > x then
+            if doLog then
+                logger.writeLine("Destination x is less than location x")
+            end
             if direction == "back" then
                 instance.turnTo("x") -- we need to decrease on x-axis, but we're going backwards so we should be facing positive x
+                if doLog then
+                    logger.writeLine("Turned to x because direction is back. Now I am facing " .. location.f)
+                end
             else
                 instance.turnTo("-x") -- we need to decrease on x-axis, and we're moving forwards so we should be facing negative x
+                if doLog then
+                    logger.writeLine("Turned to -x now I am facing " .. location.f)
+                end
             end
 
             return instance[direction](location.x - x, canDig)
@@ -263,7 +312,7 @@ function Aware.create()
         end
 
         -- Create a table copy with coordinates
-        local coords = {
+        local destination = {
             x = location.x,
             y = location.y,
             z = location.z
@@ -274,15 +323,22 @@ function Aware.create()
             local success
 
             if char == "x" then
-                success = moveToX(coords[char], options.canDig, options.direction)
+                success = moveToX(destination[char], options.canDig, options.direction, options.doLog)
             elseif char == "y" then
-                success = moveToY(coords[char], options.canDig)
+                success = moveToY(destination[char], options.canDig, options.doLog)
             elseif char == "z" then
-                success = moveToZ(coords[char], options.canDig, options.direction)
+                success = moveToZ(destination[char], options.canDig, options.direction, options.doLog)
             end
 
             if not success then
+                if options.doLog then
+                    logger.writeLine("We were unable to move along " .. char)
+                end
                 return false
+            end
+
+            if options.doLog then
+                logger.writeLine("We just moved along " .. char .. " to x:" .. location.x .. " y:" .. location.y .. " z:" .. location.z .. " f:" .. location.f)
             end
         end
 
@@ -298,7 +354,8 @@ function Aware.create()
             f = 1
         }, {
             order = order,
-            canDig = canDig
+            canDig = canDig,
+            doLog = true
         })
     end
 

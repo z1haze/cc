@@ -1,12 +1,12 @@
 -- Miner turtle module that implements Awareness and mining capabilities
 local Miner = {}
 
-function Miner.create(data)
+function Miner.create(data, logger)
     data = data or {}
 
     local instance = {}
     local Aware = require("Aware")
-    local aware = Aware.create()
+    local aware = Aware.create(logger)
     local junk = data.junk or {}
 
     local storage = {
@@ -293,6 +293,8 @@ function Miner.create(data)
                     aware.turnRight()
                 elseif movement == "right" then
                     aware.turnLeft()
+                elseif movement == "turnAround" then
+                    instance.turnAround()
                 else
                     instance.move(movements[i], true)
                 end
@@ -305,6 +307,8 @@ function Miner.create(data)
                     aware.turnLeft()
                 elseif movement == "right" then
                     aware.turnRight()
+                elseif movement == "turnAround" then
+                    instance.turnAround()
                 else
                     instance.move(movements[i])
                 end
@@ -313,13 +317,18 @@ function Miner.create(data)
     end
 
     function instance.pitStop()
+        local location = aware.getLocation()
+        logger.writeLine("Starting pitstop process at x:" .. location.x .. " y:" .. location.y .. " z:" .. location.z .. " f:" .. location.f)
         os.queueEvent("pitstop")
         traverseMovements(true)
+        location = aware.getLocation()
+        logger.writeLine("After reversing movements we're at x:" .. location.x .. " y:" .. location.y .. " z:" .. location.z .. " f:" .. location.f)
         aware.setCheckpoint()
         aware.home("zxy", true)
 
         -- unload into chest, default placement is above turtle
         if not instance.unload("up") then
+            logger.close()
             error("No storage to unload into")
             return false
         end
@@ -428,8 +437,7 @@ function Miner.create(data)
                 table.insert(movements, "right")
             elseif v == "back" then
                 instance.turnAround()
-                table.insert(movements, "right")
-                table.insert(movements, "right")
+                table.insert(movements, "turnAround")
             end
 
             -- for both and right, we just check forward
@@ -451,7 +459,6 @@ function Miner.create(data)
                 table.remove(movements)
             elseif v == "back" then
                 instance.turnAround()
-                table.remove(movements)
                 table.remove(movements)
             end
         end
