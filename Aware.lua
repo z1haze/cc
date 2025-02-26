@@ -64,7 +64,7 @@ function Aware.create(logger)
             f = location.f
         }
 
-        logger.writeLine("Checkpoint set to x:" .. checkpoint.x .. " y:" .. checkpoint.y .. " z:" .. checkpoint.z .. " f:" .. checkpoint.f)
+        logger.debug("Setting checkpoint at " .. instance.getStringLocation(checkpoint))
     end
 
     function instance.clearCheckpoint()
@@ -91,6 +91,7 @@ function Aware.create(logger)
 
         -- ensure valid direction
         if direction ~= "forward" and direction ~= "back" and direction ~= "up" and direction ~= "down" then
+            logger.fatal(direction .. " is not a valid direction at " .. instance.getStringLocation(location))
             error("invalid direction")
         end
 
@@ -122,10 +123,9 @@ function Aware.create(logger)
                         if not turtle[digMethod]() then
                             fail = true
                         end
+                        os.queueEvent("block_broken")
                     else
-                        -- fail because we dont have permission to dig the block
-                        print(textutils.serialize(location))
-                        error("I need to dig " .. direction .. " but I'm not allowed")
+                        logger.fatal("I need to dig " .. direction .. " but I'm not allowed. at " .. instance.getStringLocation(location))
                     end
                 else
                     -- since we didnt move, and we didnt detect a block, and we're not out of fuel, must be some entity in the way, attack it!
@@ -137,6 +137,7 @@ function Aware.create(logger)
                 end
 
                 if fail then
+                    logger.fatal("I attempted to dig but failed at " .. instance.getStringLocation(location))
                     return false
                 end
             end
@@ -184,113 +185,111 @@ function Aware.create(logger)
     end
 
     -- Explicitly move the turtle along the z-axis to a specified coordinate, optionally allowing the turtle to dig if it needs to
-    local function moveToZ(z, canDig, direction, doLog)
+    local function moveToZ(z, canDig, direction, shouldLog)
         if location.z == z then
-            if doLog then
-                logger.writeLine("Moving to z:" .. z .. " in direction " .. direction .. " but apparently im already there")
+            if shouldLog then
+                logger.debug("We are already at z:" .. location.z)
             end
+
             return true
         end
 
         direction = direction or "forward"
 
-        if doLog then
-            logger.writeLine("Moving to z:" .. z .. " in direction " .. direction)
+        if shouldLog then
+            logger.debug("The Z direction movement is " .. direction .. " and the current facing is " .. location.f)
         end
+
+        if shouldLog then
+            logger.debug("Current z:" .. location.z .. " is " .. (location.z < z and "less" or "greater") .. " than destination z:" .. z)
+        end
+
+        local moveSuccess
 
         if location.z < z then
-            if doLog then
-                logger.writeLine("Destination z is greater than location z")
-            end
             if direction == "back" then
                 instance.turnTo("-z")
-                if doLog then
-                    logger.writeLine("Turned to -z because direction is back. Now I am facing " .. location.f)
-                end
             else
                 instance.turnTo("z")
             end
 
-            return instance.forward(z - location.z, canDig)
+            moveSuccess = instance.forward(z - location.z, canDig)
         elseif location.z > z then
-            if doLog then
-                logger.writeLine("Destination z is less than location z")
-            end
             if direction == "back" then
                 instance.turnTo("z")
-                if doLog then
-                    logger.writeLine("Turned to z because direction is back. Now I am facing " .. location.f)
-                end
             else
                 instance.turnTo("-z")
-                if doLog then
-                    logger.writeLine("Turned to -z now I am facing " .. location.f)
-                end
             end
 
-            return instance.forward(location.z - z, canDig)
+            moveSuccess = instance.forward(location.z - z, canDig)
         end
 
-        return false
+        if shouldLog then
+            logger.debug("After turning and moving we are facing " .. location.f)
+        end
+
+        return moveSuccess
     end
 
     -- Explicitly move the turtle along the x-axis to a specified coordinate, optionally allowing the turtle to dig if it needs to
-    local function moveToX(x, canDig, direction, doLog)
+    local function moveToX(x, canDig, direction, shouldLog)
         if location.x == x then
-            if doLog then
-                logger.writeLine("Moving to x:" .. x .. " in direction " .. direction .. " but apparently im already there")
+            if shouldLog then
+                logger.debug("We are already at x:" .. location.x)
             end
+
             return true
         end
 
         direction = direction or "forward"
 
-        if doLog then
-            logger.writeLine("Moving to x:" .. x .. " in direction " .. direction)
+        if shouldLog then
+            logger.debug("The X direction movement is " .. direction .. " and the current facing is " .. location.f)
         end
+
+        if shouldLog then
+            logger.debug("Current x:" .. location.x .. " is " .. (location.x < x and "less" or "greater") .. " than destination x:" .. x)
+        end
+
+        local moveSuccess
 
         if location.x < x then
-            if doLog then
-                logger.writeLine("Destination x is greater than location x")
-            end
             if direction == "back" then
                 instance.turnTo("-x") -- we need to increase on x-axis, but we're going backwards so we should be facing negative x
-                if doLog then
-                    logger.writeLine("Turned to -x because direction is back. Now I am facing " .. location.f)
-                end
             else
                 instance.turnTo("x") -- we need to increase on x-axis, and we're moving forwards so we should be facing positive x
-                if doLog then
-                    logger.writeLine("Turned to x now I am facing " .. location.f)
-                end
             end
 
-            return instance[direction](x - location.x, canDig)
-        elseif location.x > x then
-            if doLog then
-                logger.writeLine("Destination x is less than location x")
+            if shouldLog then
+                logger.debug("After turning we are facing " .. location.f)
             end
+
+            moveSuccess = instance[direction](x - location.x, canDig)
+        elseif location.x > x then
+
             if direction == "back" then
                 instance.turnTo("x") -- we need to decrease on x-axis, but we're going backwards so we should be facing positive x
-                if doLog then
-                    logger.writeLine("Turned to x because direction is back. Now I am facing " .. location.f)
-                end
             else
                 instance.turnTo("-x") -- we need to decrease on x-axis, and we're moving forwards so we should be facing negative x
-                if doLog then
-                    logger.writeLine("Turned to -x now I am facing " .. location.f)
-                end
             end
 
-            return instance[direction](location.x - x, canDig)
+            moveSuccess = instance[direction](location.x - x, canDig)
         end
 
-        return false
+        if shouldLog then
+            logger.debug("After turning and moving we are facing " .. location.f)
+        end
+
+        return moveSuccess
     end
 
     -- Explicitly move the turtle along the y-axis to a specified coordinate, optionally allowing the turtle to dig if it needs to
-    local function moveToY(y, canDig)
+    local function moveToY(y, canDig, shouldLog)
         if location.y == y then
+            if shouldLog then
+                logger.debug("We are already at y:" .. location.y)
+            end
+
             return true
         end
 
@@ -304,7 +303,7 @@ function Aware.create(logger)
     end
 
     -- Move the turtle to a specific location, providing exact coordinates, optionally allowing the turtle to dig if it needs to, and optionally specifying the axis order in which it moves
-    function instance.moveTo(location, options)
+    function instance.moveTo(_location, options)
         options = options or {}
 
         if not options.order then
@@ -313,9 +312,9 @@ function Aware.create(logger)
 
         -- Create a table copy with coordinates
         local destination = {
-            x = location.x,
-            y = location.y,
-            z = location.z
+            x = _location.x,
+            y = _location.y,
+            z = _location.z
         }
 
         for i = 1, #options.order do
@@ -323,26 +322,25 @@ function Aware.create(logger)
             local success
 
             if char == "x" then
-                success = moveToX(destination[char], options.canDig, options.direction, options.doLog)
+                success = moveToX(destination[char], options.canDig, options.direction, options.shouldLog)
             elseif char == "y" then
-                success = moveToY(destination[char], options.canDig, options.doLog)
+                success = moveToY(destination[char], options.canDig, options.shouldLog)
             elseif char == "z" then
-                success = moveToZ(destination[char], options.canDig, options.direction, options.doLog)
+                success = moveToZ(destination[char], options.canDig, options.direction, options.shouldLog)
             end
 
             if not success then
-                if options.doLog then
-                    logger.writeLine("We were unable to move along " .. char)
-                end
                 return false
-            end
-
-            if options.doLog then
-                logger.writeLine("We just moved along " .. char .. " to x:" .. location.x .. " y:" .. location.y .. " z:" .. location.z .. " f:" .. location.f)
             end
         end
 
-        return instance.turnTo(location.f)
+        local success = instance.turnTo(_location.f)
+
+        if options.shouldLog then
+            logger.debug("Facing direction " .. location.f .. " after moveTo")
+        end
+
+        return success
     end
 
     -- Move the turtle to home
@@ -355,7 +353,7 @@ function Aware.create(logger)
         }, {
             order = order,
             canDig = canDig,
-            doLog = true
+            shouldLog = true
         })
     end
 
@@ -461,6 +459,8 @@ function Aware.create(logger)
     --- ===============================================================
 
     function instance.useFuel(targetFuelLevel)
+        local refueledAmount = 0
+
         -- cache the currently selected slot, so we can put it back when we're done
         local slot = turtle.getSelectedSlot()
 
@@ -496,12 +496,25 @@ function Aware.create(logger)
                     count = count - 1
                 end
 
+                refueledAmount = refueledAmount + (count * fuelPer)
+
                 -- burn that shit
                 turtle.refuel(count)
             end
         end
 
-        return turtle.select(slot)
+        turtle.select(slot)
+
+        return refueledAmount
+    end
+
+    --- ===============================================================
+    --- LOGGER METHODS
+    --- ===============================================================
+
+    --- function to get the string formatted location
+    function instance.getStringLocation(location)
+        return "x:" .. location.x .. " y:" .. location.y .. " z:" .. location.z .. " f:" .. location.f
     end
 
     return instance

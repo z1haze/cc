@@ -1,83 +1,64 @@
+local GUIUtils = require("GUIUtils")
+local TurtleUtils = require("TurtleUtils")
+
 -- Miner turtle module that implements Awareness and mining capabilities
 local Miner = {}
 
+local ResourceMessages = {
+    Actions = {
+        ["descend"] = "Descending",
+        ["branch"] = "Branch Mining",
+        ["home"] = "Heading Home",
+        ["pitstop"] = "Pitstop",
+        ["checkpoint"] = "Checkpoint",
+        ["floor"] = "Next Floor",
+        ["done"] = "Finished",
+        ["refuel"] = "Refuel"
+    }
+}
+
 function Miner.create(data, logger)
-    data = data or {}
-
-    local instance = {}
+    -- deps
     local Aware = require("Aware")
+    local guiUtils = GUIUtils.create()
     local aware = Aware.create(logger)
-    local junk = data.junk or {}
 
-    local storage = {
-        name = {
-            "immersiveengineering:crate",
-            "ironchests:gold_chest"
-        },
-
-        tags = {
-            ["minecraft:shulker_boxes"] = true,
-            ["forge:shulker_boxes"] = true,
-            ["forge:chests"] = true,
-            ["c:chests"] = true
-        }
-    }
-
-    local invert = {
-        ["forward"] = "back",
-        ["back"] = "forward",
-        ["up"] = "down",
-        ["down"] = "up"
-    }
-
+    -- our "instance" object that gets returned from this method
+    local instance = {}
+    -- tracking recursive movements so we can back the fuck out when we need a pitstop
     local movements = {}
 
+    -- local private data for running this shit
+    local trash = data.trash or {}
+    local storage = data.storage or {}
+    local shouldCheckLeft = data.shouldCheckLeft == true
+    local shouldCheckRight = data.shouldCheckRight == true
+    local shouldCheckUp = data.shouldCheckUp == true
+    local shouldCheckDown = data.shouldCheckDown == true
+    local doRecursion = data.doRecursion == true
+    local startY = data.startY
+    local minY = data.minY
+    local maxY = data.maxY
+    local targetY = data.minY
+    local branchGap = data.branchGap
+    local floorGap = data.floorGap
+    local currentBranch = 1
+    local branchCount = data.branchCount or 1
+    local branchLength = data.branchLength or 16
+    local branchBlock = 1
+    local blocksTraveled = 0
+    local blocksCollected = 0
+    local blocksBroken = 0
     local fuelReserve = 20000
+    local guiAction
 
-    --- ===============================================================
-    --- ROTATION METHODS
-    --- ===============================================================
-
-    function instance.turnLeft()
-        return aware.turnLeft()
+    --- update the gui action and emit an event so the gui listener can use it
+    local function setGUIAction(_guiAction)
+        guiAction = _guiAction
+        os.queueEvent("action_change")
     end
 
-    function instance.turnRight()
-        return aware.turnRight()
-    end
-
-    function instance.turn(d)
-        return aware.turn(d)
-    end
-
-    function instance.turnAround()
-        return aware.turnAround()
-    end
-
-    function instance.turnTo(n)
-        return aware.turnTo(n)
-    end
-
-    -----------------
-
-    local function detect(direction)
-        if not direction or direction == "forward" then
-            return turtle.detect()
-        elseif direction == "up" then
-            return turtle.detectUp()
-        elseif direction == "down" then
-            return turtle.detectDown()
-        end
-
-        return false
-    end
-
-    -----------------
-
-    --- ===============================================================
-    --- MOVEMENT METHODS
-    --- ===============================================================
-
+    --- private abstraction to the aware movement api
     local function _move(direction)
         if not direction then
             direction = "forward"
@@ -86,11 +67,12 @@ function Miner.create(data, logger)
         return aware[direction](1, true)
     end
 
-    function instance.move(direction, _invert)
+    --- handle turtle movements, accounting for possible entities in the way
+    local function move(direction, _invert)
         direction = direction or "forward"
 
         if _invert then
-            direction = invert[direction]
+            direction = TurtleUtils.invert[direction]
         end
 
         local moved = false
@@ -106,19 +88,21 @@ function Miner.create(data, logger)
 
             -- if the turtle didnt move because of fuel, return false
             if turtle.getFuelLevel() == 0 then
-                error("OUT OF GAS -- MAYBE PITSTOP WITH WAIT FOR FUEL FLAG?")
+                logger.fatal("Ran out of fuel at " .. aware.getStringLocation(aware.getLocation()))
+                error("Ain't go no gas in it!")
             end
 
             -- if the direction is back, we need to turn around to detect
             if direction == "back" then
-                instance.turnAround()
+                aware.turnAround()
             end
 
             -- if the turtle didnt move because of a block, return false
-            local detectResult = detect(direction == "back" and "forward" or direction)
+            local detectResult = TurtleUtils.detect(direction == "back" and "forward" or direction)
 
             -- if there is a block in front, that's why it didnt move, return false this is normal
             if detectResult then
+                logger.fatal("Need to dig but I'm not allowed at " .. aware.getStringLocation(aware.getLocation()))
                 error("couldn't move, block in the way")
             end
 
@@ -134,11 +118,11 @@ function Miner.create(data, logger)
                     aware.turnAround()
                 end
 
-                local attackResult = instance.attack(direction)
+                local attackResult = TurtleUtils.attack(direction)
 
                 -- turn the turtle back around
                 if direction == "back" then
-                    direction.turnAround()
+                    aware.turnAround()
                 end
 
                 if not attackResult then
@@ -150,140 +134,7 @@ function Miner.create(data, logger)
         return moved
     end
 
-    function instance.home(data)
-        data = data or {}
-
-        return aware.home(data.order or "xzy", data.canDig or false)
-    end
-
-    --- ===============================================================
-    --- LOCATION METHODS
-    --- ===============================================================
-
-    function instance.getLocation()
-        return aware.getLocation()
-    end
-
-    function instance.moveTo(location, options)
-        aware.moveTo(location, options)
-    end
-
-    -------------------------------
-    -------------------------------
-    -------------------------------
-
-    local function inspect(direction)
-        if not direction or direction == "forward" then
-            return turtle.inspect()
-        elseif direction == "up" then
-            return turtle.inspectUp()
-        elseif direction == "down" then
-            return turtle.inspectDown()
-        end
-
-        return false
-    end
-
-    --- Determine if an item details is a valid storage item
-    local function isStorageItem(item)
-        if not item then
-            return false
-        end
-
-        -- iterate through the keys and values of the table, which are block names, and block tags
-        for k, v in pairs(storage) do
-            -- iterate over the keys and values of each table which are number,string or string,boolean
-            for kk, _ in pairs(v) do
-                -- check against valid names
-                if k == "name" and item.name == v[kk] then
-                    return true
-                end
-
-                -- check against valid tags
-                if k == "tags" and item.tags[kk] then
-                    return true
-                end
-            end
-        end
-
-        return false
-    end
-
-    --- Drop items in a particular direction
-    local function drop(direction, count)
-        if not direction or direction == "forward" then
-            return turtle.drop(count)
-        elseif direction == "up" then
-            return turtle.dropUp(count)
-        elseif direction == "down" then
-            return turtle.dropDown(count)
-        end
-
-        return false
-    end
-
-    --- Make the turtle unload its entire inventory to the block at a particular direction
-    function instance.unload(direction)
-        direction = direction or "forward"
-
-        -- if there is no block in the direction we are unloading, error out
-        if not detect(direction) then
-            error("I have nowhere to put these items!")
-        end
-
-        -- get the details of the block we are supposed to unload into
-        local _, details = inspect(direction)
-
-        -- if the item i'm supposed to be unloading into is not a storage item, wtf are you even doing
-        if not isStorageItem(details) then
-            error("Cannot deposit items into " .. details.name)
-        end
-
-        -- cache the slot we already have selected
-        local slot = turtle.getSelectedSlot()
-
-        -- an aggregate total of fuel that we choose to keep in the turtle inventory as a fuel reserve
-        -- this is needed so once we accumulate enough to meet the fuel reserve, we can dump the rest
-        local fuelKept = 0
-
-        for i = 1, 16 do
-            local item = turtle.getItemDetail(i)
-
-            if item then
-                local amountToDrop
-
-                -- if the item can be used as fuel, we need to do some extra processing
-                -- because we want to keep _some_ fuel in the inventory as a reserve
-                if aware.fuelMap[item.name] then
-                    local amountToKeep = 0
-
-                    for j = 1, item.count do
-                        -- if we've already kept enough fuel we
-                        if fuelKept >= fuelReserve then
-                            break
-                        end
-
-                        amountToKeep = j
-                        fuelKept = fuelKept + aware.fuelMap[item.name]
-                    end
-
-                    amountToDrop = item.count - amountToKeep
-                else
-                    amountToDrop = item.count
-                end
-
-                turtle.select(i)
-
-                if not drop(direction, amountToDrop) then
-                    return false
-                end
-            end
-        end
-
-        return turtle.select(slot)
-    end
-
-    -- traverse the movements logged from the recursiveDig function
+    --- traverse the movements logged from the recursiveDig function
     local function traverseMovements(reverse)
         if reverse then
             for i = #movements, 1, -1 do
@@ -294,9 +145,9 @@ function Miner.create(data, logger)
                 elseif movement == "right" then
                     aware.turnLeft()
                 elseif movement == "turnAround" then
-                    instance.turnAround()
+                    aware.turnAround()
                 else
-                    instance.move(movements[i], true)
+                    move(movements[i], true)
                 end
             end
         else
@@ -308,42 +159,131 @@ function Miner.create(data, logger)
                 elseif movement == "right" then
                     aware.turnRight()
                 elseif movement == "turnAround" then
-                    instance.turnAround()
+                    aware.turnAround()
                 else
-                    instance.move(movements[i])
+                    move(movements[i])
                 end
             end
         end
     end
 
-    function instance.pitStop()
-        local location = aware.getLocation()
-        logger.writeLine("Starting pitstop process at x:" .. location.x .. " y:" .. location.y .. " z:" .. location.z .. " f:" .. location.f)
-        os.queueEvent("pitstop")
-        traverseMovements(true)
-        location = aware.getLocation()
-        logger.writeLine("After reversing movements we're at x:" .. location.x .. " y:" .. location.y .. " z:" .. location.z .. " f:" .. location.f)
-        aware.setCheckpoint()
-        aware.home("zxy", true)
+    --- unload the turtle
+    local function unload(direction)
+        direction = direction or "up"
 
-        -- unload into chest, default placement is above turtle
-        if not instance.unload("up") then
-            logger.close()
-            error("No storage to unload into")
-            return false
+        logger.debug("Unloading in the " .. direction .. " direction")
+
+        -- if there is no block in the direction we are unloading, error out
+        if not TurtleUtils.detect(direction) then
+            logger.error("Failed to find a chest at location " .. aware.getStringLocation(aware.getLocation()))
+            error("I have nowhere to put these items!")
         end
 
-        os.queueEvent("checkpoint")
-        aware.moveTo(aware.getCheckpoint())
-        aware.clearCheckpoint()
-        traverseMovements()
+        -- get the details of the block we are supposed to unload into
+        local _, details = TurtleUtils.inspect(direction)
+
+        -- if the item i'm supposed to be unloading into is not a _storage item, wtf are you even doing
+        if not TurtleUtils.isStorageItem(details, storage) then
+            error("Cannot deposit items into " .. details.name)
+        end
+
+        -- unload the goods
+        return TurtleUtils.unload(direction, storage)
     end
 
-    local function check(direction)
-        if detect(direction) then
-            local result, block = inspect(direction)
+    --- Takes full load back to the chest at home and comes back
+    local function pitStop(waitForFuel)
+        local prevAction = guiAction -- save the current action so we can set it back after the pitstop
 
-            if result and not junk[block.name] then
+        logger.debug("Starting pitstop " .. aware.getStringLocation(aware.getLocation()))
+
+        -- tell gui we are performing a pitstop
+        setGUIAction(waitForFuel and "refuel" or "pitstop")
+
+        -- move back to the branch block before any recursive digging occurred
+        traverseMovements(true)
+
+        -- set a checkpoint back to the current branch block
+        aware.setCheckpoint()
+
+        -- move to origin with order of axis z,x,y
+        aware.home("zxy", true)
+
+        logger.debug("I'm home? " .. aware.getStringLocation(aware.getLocation()))
+
+        -- unload into chest, default placement is above turtle
+        unload("up")
+
+        -- if we came back because we needed fuel
+        if waitForFuel then
+            logger.debug("Waiting at home for fuel during pitstop")
+
+            -- attempt to refuel every 10 seconds
+            -- once the fuel is at least half of the fuel reserve we can continue on
+            while true do
+                aware.refuel(fuelReserve)
+                sleep(10)
+
+                if turtle.getFuelLevel() >= fuelReserve then
+                    break
+                end
+            end
+        end
+
+        -- move back to the checkpoint block
+        setGUIAction("checkpoint")
+        aware.moveTo(aware.getCheckpoint())
+        logger.debug("Moved back to checkpoint at " .. aware.getStringLocation(aware.getLocation()))
+        aware.clearCheckpoint()
+
+        -- move back to the recursive block location if it exists
+        traverseMovements()
+
+        logger.debug("Ending pitstop at " .. aware.getStringLocation(aware.getLocation()))
+
+        -- put the action back to the previous action before we did the pitstop
+        setGUIAction(prevAction)
+    end
+
+    --- Handle freeing up slots in the turtle, and make a pitstop if necessary
+    local function freeUpSpace()
+        local fuelLevel = turtle.getFuelLevel()
+
+        ---- refuel if necessary
+        if fuelLevel < fuelReserve then
+            aware.useFuel(fuelReserve - turtle.getFuelLevel())
+        end
+
+        -- if we're dangerouly low, we need to go back and wait for more fuel
+        if turtle.getFuelLevel() < 1000 then
+            pitStop(true)
+        end
+
+        ---- consolidate partial stacks where possible
+        if #TurtleUtils.getEmptySlots() < 2 then
+            TurtleUtils.compact()
+        end
+
+        ---- check if there are empty slots, dump any useless blocks to save space
+        if #TurtleUtils.getEmptySlots() < 2 then
+            TurtleUtils.dropTrash(trash)
+        end
+
+        ---- if after dump useless blocks the empty space is 1, go unload
+        if #TurtleUtils.getEmptySlots() < 2 then
+            pitStop()
+        end
+
+        -- select the first slot to possibly help fix stacking issues?
+        turtle.select(1)
+    end
+
+    --- Check for a "wanted" block in front, above, or below
+    local function check(direction)
+        if TurtleUtils.detect(direction) then
+            local result, block = TurtleUtils.inspect(direction)
+
+            if result and not trash[block.name] then
                 return true
             end
         end
@@ -351,57 +291,22 @@ function Miner.create(data, logger)
         return false
     end
 
-    --- Get a table of slots which are empty in the turtle's inventory
-    local function getEmptySlots()
-        local t = {}
-
-        for i = 1, 16 do
-            if turtle.getItemCount(i) == 0 then
-                table.insert(t, i)
-            end
-        end
-
-        return t
-    end
-
-    local function freeUpSpace()
-        ---- refuel if necessary
-        if turtle.getFuelLevel() < 1000 then
-            aware.useFuel(1000)
-        end
-
-        ---- consolidate partial stacks where possible
-        if #getEmptySlots() < 2 then
-            instance.compact()
-        end
-
-        ---- check if there are empty slots, dump any useless blocks to save space
-        if #getEmptySlots() < 2 then
-            instance.dropTrash()
-        end
-
-        ---- if after dump useless blocks the empty space is 1, go unload
-        if #getEmptySlots() < 2 then
-            instance.pitStop()
-            os.queueEvent("branch")
-        end
-    end
-
+    --- Recursively mine in a direction, checking for "wanted" blocks
     local function recursiveDig(dir)
         dir = dir or "forward"
 
         --- helper function to dig blocks recursively in a direction
         --
         -- @param d string: direction
-        local function dig(d)
-            d = d or "forward"
-            instance.dig(d)
+        local function dig(direction)
+            direction = direction or "forward"
+            TurtleUtils.dig(direction)
             os.queueEvent("block_collected")
             freeUpSpace()
-            instance.move(d)
-            table.insert(movements, d)
-            recursiveDig(d)
-            instance.move(d, true) -- moves the inverse
+            move(direction)
+            table.insert(movements, direction)
+            recursiveDig(direction)
+            move(direction, true) -- moves the inverse
             table.remove(movements)
         end
 
@@ -415,7 +320,7 @@ function Miner.create(data, logger)
             local indexToRemove
 
             for key, v in pairs(positions) do
-                if v == invert[dir] then
+                if v == TurtleUtils.invert[dir] then
                     indexToRemove = key
                     break
                 end
@@ -430,13 +335,13 @@ function Miner.create(data, logger)
 
             -- turn to direction
             if v == "left" then
-                instance.turn("left")
+                aware.turn("left")
                 table.insert(movements, "left")
             elseif v == "right" then
-                instance.turn("right")
+                aware.turn("right")
                 table.insert(movements, "right")
             elseif v == "back" then
-                instance.turnAround()
+                aware.turnAround()
                 table.insert(movements, "turnAround")
             end
 
@@ -452,13 +357,13 @@ function Miner.create(data, logger)
 
             -- turn back to front
             if v == "left" then
-                instance.turn("right")
+                aware.turn("right")
                 table.remove(movements)
             elseif v == "right" then
-                instance.turn("left")
+                aware.turn("left")
                 table.remove(movements)
             elseif v == "back" then
-                instance.turnAround()
+                aware.turnAround()
                 table.remove(movements)
             end
         end
@@ -466,34 +371,27 @@ function Miner.create(data, logger)
         return true
     end
 
+    --- An abstraction to help mining each block in a branch
     local function handleBlock(direction, doRecursiveChecks)
         direction = direction or "forward"
 
         if check(direction) then
-            instance.dig(direction)
+            TurtleUtils.dig(direction)
             os.queueEvent("block_collected")
 
             if doRecursiveChecks then
-                instance.move(direction)
+                move(direction)
                 table.insert(movements, direction)
                 recursiveDig(direction)
-                instance.move(direction, true)
+                move(direction, true)
                 movements = {}
             end
         end
     end
 
-    function instance.branchMine(data)
-        local branchLength = data.branchLength
-        local shouldCheckUp = data.shouldCheckUp == nil and true or data.shouldCheckUp
-        local shouldCheckDown = data.shouldCheckDown == nil and true or data.shouldCheckDown
-        local shouldCheckLeft = data.shouldCheckLeft == nil and true or data.shouldCheckLeft
-        local shouldCheckRight = data.shouldCheckRight == nil and true or data.shouldCheckRight
-        local shouldDigRecursively = data.shouldDigRecursively == nil and false or data.shouldDigRecursively
-
+    --- The meat and potatoes of the mining program
+    local function branchMine()
         for i = 1, branchLength do
-            movements = {} -- just in case?
-
             os.queueEvent("branch_block", i)
 
             freeUpSpace()
@@ -504,109 +402,254 @@ function Miner.create(data, logger)
             -- correct y-level and begins branch mining
             -- doing this means that the starting block will get the proper checks too
             if i > 1 then
-                instance.dig()
+                turtle.dig()
+                os.queueEvent("block_broken")
 
-                if not instance.move() then
+                if not move() then
                     error("Tried to move in branch mine but couldn't")
                 end
             end
 
             -- check the block above
             if shouldCheckUp then
-                handleBlock("up", shouldDigRecursively)
+                handleBlock("up", doRecursion)
             end
 
             -- check the block below
             if shouldCheckDown then
-                handleBlock("down", shouldDigRecursively)
+                handleBlock("down", doRecursion)
             end
 
             -- check the block to the left
             if shouldCheckLeft then
-                instance.turnLeft()
-                handleBlock("forward", shouldDigRecursively)
-                instance.turnRight()
+                aware.turnLeft()
+                handleBlock("forward", doRecursion)
+                aware.turnRight()
             end
 
             -- check the block to the right
             if shouldCheckRight then
-                instance.turnRight()
-                handleBlock("forward", shouldDigRecursively)
-                instance.turnLeft()
+                aware.turnRight()
+                handleBlock("forward", doRecursion)
+                aware.turnLeft()
             end
         end
     end
 
-    function instance.dig(direction)
-        if not direction or direction == "forward" then
-            return turtle.dig()
-        elseif direction == "up" then
-            return turtle.digUp()
-        elseif direction == "down" then
-            return turtle.digDown()
+    --- Keeps the GUI updated with statistics
+    local function updateGUI()
+        local actionMessage = guiAction and ResourceMessages.Actions[guiAction] or "Awaiting Work"
+
+        -- write the current action line
+        term.setCursorPos(3, 2)
+        guiUtils.clearLine()
+        write("Current Action: " .. actionMessage .. "...")
+
+        if action == "descend" then
+            actionMessage = "Descending to Y-Level " .. targetY
+        elseif action == "branch" then
+            actionMessage = "On Branch " .. currentBranch .. "/" .. branchCount
+
+            if _branchBlock then
+                actionMessage = actionMessage .. ", Block " .. branchBlock .. "/" .. branchLength
+            end
+        elseif action == "pitstop" then
+            actionMessage = "Shitter's full, gotta dump"
+        elseif action == "checkpoint" then
+            actionMessage = "Moving to saved checkpoint"
+        elseif action == "home" then
+            actionMessage = "Finishing mining, heading home"
+        elseif action == "done" then
+            actionMessage = "Operation Complete."
+        elseif action == "refuel" then
+            actionMessage = "Fuel dangerously low. Insert fuel"
         end
 
-        return false
-    end
-
-    function instance.attack(direction)
-        if not direction or direction == "forward" then
-            return turtle.attack()
-        elseif direction == "up" then
-            return turtle.attackUp()
-        elseif direction == "down" then
-            return turtle.attackDown()
+        if actionMessage then
+            term.setCursorPos(3, 4)
+            guiUtils.clearLine()
+            write(actionMessage)
         end
 
-        return false
+        -- total blocks traveled
+        term.setCursorPos(3, 6)
+        guiUtils.clearLine()
+        write("Blocks Traveled   : " .. blocksTraveled)
+
+        -- total blocks collected
+        term.setCursorPos(3, 7)
+        guiUtils.clearLine()
+        write("Blocks Collected  : " .. blocksCollected)
+
+        -- total blocks mined
+        term.setCursorPos(3, 8)
+        guiUtils.clearLine()
+        write("Blocks Mined      : " .. blocksBroken)
+
+        -- current fuel level
+        term.setCursorPos(3, 9)
+        guiUtils.clearLine()
+        write("Fuel Level        : " .. turtle.getFuelLevel())
+
+        -- target y level
+        term.setCursorPos(3, 10)
+        guiUtils.clearLine()
+        write("Target Y-Level    : " .. targetY)
     end
 
-    --- Consolidate partial stacks of items to save inventory space
-    function instance.compact()
-        local incompleteStacks = {}
+    -- MAIN LOOP FUNCTIONS
 
-        -- compact stacks
-        for i = 1, 16 do
-            local item = turtle.getItemDetail(i)
+    --- Listens for queued events and updates runtime variables for displaying on the GUI
+    function instance.listen()
+        while true do
+            local shouldUpdate = false
+            local event = os.pullEvent()
 
-            if item then
-                local name = item.name
-                local existingSlot = incompleteStacks[name]
+            if event == "block_collected" then
+                blocksCollected = blocksCollected + 1
+                shouldUpdate = true
+            elseif event == "block_broken" then
+                blocksBroken = blocksBroken + 1
+                shouldUpdate = true
+            elseif event == "moved" then
+                blocksTraveled = blocksTraveled + 1
+                shouldUpdate = true
+            elseif event == "action_change" then
+                shouldUpdate = true
+            end
 
-                if existingSlot then
-                    turtle.select(i)
-                    turtle.transferTo(existingSlot)
+            if shouldUpdate then
+                updateGUI()
+            end
+        end
+    end
 
-                    if turtle.getItemCount() > 0 then
-                        incompleteStacks[name] = i
+    --- The main loop
+    function instance.run()
+        local success, err = pcall(function()
+            -- tell the gui we are descending
+            setGUIAction("descend")
+
+            logger.debug("Descending to target y-level: " .. minY)
+
+            -- descend to target y level
+            aware.moveTo({
+                x = 0,
+                -- initial descent is to the minimum y level
+                y = minY - startY,
+                z = 0,
+                f = 1
+            }, {
+                canDig = true
+            })
+
+            -- indicates if there are more floors (y-levels) to be mined
+            local keepGoing = true
+
+            -- mine out all floors
+            while keepGoing do
+                setGUIAction("branch")
+
+                for i = 1, branchCount do
+                    currentBranch = i
+
+                    logger.debug("Beginning branch " .. currentBranch)
+
+                    local isEvenBranch = i % 2 == 0
+
+                    -- at the start of the branch, we either look left or look right, depending if the branch is even or odd
+                    -- think of it like a zig zag pattern, going back and forth. e.g. we tell the turtle to either look east or west
+                    if isEvenBranch then
+                        aware.turnLeft()
+                    else
+                        aware.turnRight()
                     end
+
+                    -- tell the miner to mine a single branch
+                    branchMine({
+                        branchLength = branchLength,
+                        shouldCheckLeft = shouldCheckLeft,
+                        shouldCheckRight = shouldCheckRight,
+                        shouldCheckUp = shouldCheckUp,
+                        shouldCheckDown = shouldCheckDown,
+                        shouldDigRecursively = doRecursion
+                    })
+
+                    -- move across the z axis (relative north) to prepare for the next branch
+                    if i < branchCount then
+                        logger.debug("Moving to the next branch starting point")
+
+                        -- free up space after the branch is mined, before preparing for the next branch
+                        freeUpSpace()
+
+                        -- face to the relative north
+                        aware.turnTo(1)
+
+                        -- dig out the branch gap to get in position for the next branch iteration
+                        for _ = 1, branchGap + 1 do
+                            turtle.dig()
+                            move()
+                        end
+                    end
+                end
+
+                -- PREPARE FOR POSSIBLE NEXT FLOOR!
+                logger.debug("Moving back to vertical shaft")
+
+                -- move to vertical shaft
+                aware.moveTo({
+                    x = 0,
+                    y = aware.getLocation().y,
+                    z = 0,
+                    f = 1
+                }, {
+                    canDig = false,
+                    order = "zxy"
+                })
+
+                -- next potential y level to mine out
+                targetY = startY + aware.getLocation().y + floorGap + 1
+
+                -- are we at beyond the starting y?
+                if targetY >= startY or targetY > maxY then
+                    keepGoing = false
                 else
-                    incompleteStacks[name] = i
+                    logger.debug("Moving to the next floor at y-level: " .. targetY)
+
+                    -- tell the gui we are moving to the next floor
+                    setGUIAction("floor")
+
+                    -- move up to the next floor
+                    aware.moveTo({
+                        x = 0,
+                        y = targetY - startY, -- remember, its relative
+                        z = 0,
+                        f = 1
+                    }, {
+                        canDig = false
+                    })
                 end
             end
+
+            logger.debug("No more floors to mine. Going home")
+
+            -- tell the gui we are moving to home
+            setGUIAction("home")
+
+            -- move to home
+            aware.home("xzy", true)
+
+            -- attempt to unload the stuffs above the turtle
+            unload("up")
+
+            logger.info("Traveled " .. blocksTraveled .. " blocks")
+            logger.info("Mined a total of " .. blocksBroken .. " blocks, " .. blocksCollected .. " of which considered valuable.")
+        end)
+
+        if not success then
+            logger.fatal("Program crashed at relative coordinates " .. aware.getStringLocation(aware.getLocation()))
+            logger.fatal(tostring(err))
         end
-    end
-
-    --- Make the turtle drop any items considered to be trash
-    function instance.dropTrash()
-        local slot = turtle.getSelectedSlot()
-
-        for i = 1, 16 do
-            local item = turtle.getItemDetail(i)
-
-            if item then
-                if junk[item.name] then
-                    if not turtle.select(i) then
-                        return false
-                    end
-                    if not drop("forward", item.count) then
-                        return false
-                    end
-                end
-            end
-        end
-
-        return turtle.select(slot)
     end
 
     return instance

@@ -5,7 +5,10 @@ end
 local files = {
     ["2YZEVMCY"] = "go.lua",
     ["6XZpaN99"] = "Miner.lua",
-    ["JyLntqAR"] = "Aware.lua"
+    ["JyLntqAR"] = "Aware.lua",
+    ["crFin3cA"] = "TurtleUtils.lua",
+    ["Bg2hsB5R"] = "Logger.lua",
+    ["urxNRmJN"] = "GUIUtils.lua"
 }
 
 for code, name in pairs(files) do
