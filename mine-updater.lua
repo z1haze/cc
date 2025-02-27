@@ -3,7 +3,7 @@ if not turtle then
 end
 
 local files = {
-    ["2YZEVMCY"] = "go.lua",
+    ["2YZEVMCY"] = "mine.lua",
     ["6XZpaN99"] = "Miner.lua",
     ["JyLntqAR"] = "Aware.lua",
     ["crFin3cA"] = "TurtleUtils.lua",
