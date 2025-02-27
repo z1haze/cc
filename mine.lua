@@ -180,7 +180,9 @@ function main()
             ["create:scoria"] = true,
             -- promenade
             ["promenade:carbonite"] = true,
-            ["promenade:blunite"] = true
+            ["promenade:blunite"] = true,
+            -- spectrum
+            ["spectrum:preservation_stone"] = true
         },
         storage = {
             name = {
