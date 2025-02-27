@@ -197,7 +197,7 @@ function Aware.create(logger)
         direction = direction or "forward"
 
         if shouldLog then
-            logger.debug("The Z direction movement is " .. direction .. " and the current facing is " .. location.f)
+            logger.debug("We will move " .. direction .. " along the z-axis. Currently facing " .. location.f)
         end
 
         if shouldLog then
@@ -225,7 +225,7 @@ function Aware.create(logger)
         end
 
         if shouldLog then
-            logger.debug("After turning and moving we are facing " .. location.f)
+            logger.debug("Moved along z-axis to block " .. z .. " while facing " .. location.f)
         end
 
         return moveSuccess
@@ -244,7 +244,7 @@ function Aware.create(logger)
         direction = direction or "forward"
 
         if shouldLog then
-            logger.debug("The X direction movement is " .. direction .. " and the current facing is " .. location.f)
+            logger.debug("We will move " .. direction .. " along the x-axis. Currently facing " .. location.f)
         end
 
         if shouldLog then
@@ -277,7 +277,7 @@ function Aware.create(logger)
         end
 
         if shouldLog then
-            logger.debug("After turning and moving we are facing " .. location.f)
+            logger.debug("Moved along x-axis to block " .. x .. " while facing " .. location.f)
         end
 
         return moveSuccess
