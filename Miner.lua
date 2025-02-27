@@ -302,6 +302,7 @@ function Miner.create(data, logger)
             direction = direction or "forward"
             TurtleUtils.dig(direction)
             os.queueEvent("block_collected")
+            os.queueEvent("block_broken")
             freeUpSpace()
             move(direction)
             table.insert(movements, direction)
@@ -378,6 +379,7 @@ function Miner.create(data, logger)
         if check(direction) then
             TurtleUtils.dig(direction)
             os.queueEvent("block_collected")
+            os.queueEvent("block_broken")
 
             if doRecursiveChecks then
                 move(direction)
