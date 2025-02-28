@@ -166,6 +166,10 @@ function main()
             ["minecraft:andesite"] = true,
             ["minecraft:granite"] = true,
             ["minecraft:diorite"] = true,
+            ["minecraft:calcite"] = true,
+            ["minecraft:blackstone"] = true,
+            ["minecraft:basalt"] = true,
+            ["minecraft:smooth_basalt"] = true,
             -- byg
             ["byg:soapstone"] = true,
             -- blockus
