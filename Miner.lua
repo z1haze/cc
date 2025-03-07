@@ -404,8 +404,13 @@ function Miner.create(data, logger)
             -- correct y-level and begins branch mining
             -- doing this means that the starting block will get the proper checks too
             if i > 1 then
-                turtle.dig()
-                os.queueEvent("block_broken")
+                if check("forward") then
+                    turtle.dig()
+                    os.queueEvent("block_collected")
+                else
+                    turtle.dig()
+                    os.queueEvent("block_broken")
+                end
 
                 if not move() then
                     error("Tried to move in branch mine but couldn't")
