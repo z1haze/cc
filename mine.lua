@@ -170,6 +170,7 @@ function main()
             ["minecraft:blackstone"] = true,
             ["minecraft:basalt"] = true,
             ["minecraft:smooth_basalt"] = true,
+            ["minecraft:dripstone_block"] = true,
             -- byg
             ["byg:soapstone"] = true,
             -- blockus
