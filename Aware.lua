@@ -91,8 +91,7 @@ function Aware.create(logger)
 
         -- ensure valid direction
         if direction ~= "forward" and direction ~= "back" and direction ~= "up" and direction ~= "down" then
-            logger.fatal(direction .. " is not a valid direction at " .. instance.getStringLocation(location))
-            error("invalid direction")
+            error(direction .. " is not a valid direction at " .. instance.getStringLocation(location))
         end
 
         -- for each distance
@@ -125,7 +124,7 @@ function Aware.create(logger)
                         end
                         os.queueEvent("block_broken")
                     else
-                        logger.fatal("I need to dig " .. direction .. " but I'm not allowed. at " .. instance.getStringLocation(location))
+                        error("I need to dig " .. direction .. " but I'm not allowed. at " .. instance.getStringLocation(location))
                     end
                 else
                     -- since we didnt move, and we didnt detect a block, and we're not out of fuel, must be some entity in the way, attack it!
@@ -137,8 +136,7 @@ function Aware.create(logger)
                 end
 
                 if fail then
-                    logger.fatal("I attempted to dig but failed at " .. instance.getStringLocation(location))
-                    return false
+                    error("I attempted to dig but failed at " .. instance.getStringLocation(location))
                 end
             end
 
