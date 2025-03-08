@@ -531,6 +531,12 @@ function Miner.create(data, logger)
         end
     end
 
+    local function waitToEnd()
+        term.setCursorPos(12, 2)
+        write("Press any key to end the program")
+        os.pullEvent("key")
+    end
+
     --- The main loop
     function instance.run()
         local success, err = pcall(function()
@@ -651,6 +657,12 @@ function Miner.create(data, logger)
 
             logger.info("Traveled " .. blocksTraveled .. " blocks")
             logger.info("Mined a total of " .. blocksBroken .. " blocks, " .. blocksCollected .. " of which considered valuable.")
+
+            setGUIAction("done")
+            waitToEnd()
+
+            term.clear()
+            term.setCursorPos(1, 1)
         end)
 
         if not success then
