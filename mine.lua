@@ -183,6 +183,7 @@ function main()
             ["create:limestone"] = true,
             ["create:crimsite"] = true,
             ["create:scoria"] = true,
+            ["create:veridium"] = true,
             -- promenade
             ["promenade:carbonite"] = true,
             ["promenade:blunite"] = true,
